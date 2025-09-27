@@ -1,44 +1,62 @@
-import os
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_community.document_loaders import TextLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import InMemoryVectorStore
-from langchain_openai import OpenAIEmbeddings
-from langchain.tools.retriever import create_retriever_tool
-from langgraph.graph import StateGraph, ToolNode, tools_condition
-from langgraph.checkpoint.mongodb import MongoDBSaver
-from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import MessagesState
-from langgraph.graph import InjectedState
-from langchain_core.tools import tool
-from agents.schemas.agent_schemas import FireEmergencyInfo
-from utils.database_utils import save_fire_emergency
-from utils.message_formatter import format_conversation_messages
 import logging
+from langchain_community.document_loaders import TextLoader
+from dotenv import load_dotenv
+from langchain.tools.retriever import create_retriever_tool
+from langchain_openai import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langgraph.graph import MessagesState, StateGraph, START, END
+from langgraph.prebuilt import tools_condition
+from langgraph.checkpoint.mongodb import MongoDBSaver
+from langchain_core.tools import tool
+from langchain_core.messages import ToolMessage
+from typing import Annotated
+from configurations.config import config
+from configurations.db import mongodb_client
+from utils.message_formatter import format_conversation_messages
+from utils.database_utils import save_fire_emergency
+from agents.schemas.agent_schemas import FireEmergencySchema
 
+# Configure logging
+logging.basicConfig(
+    level=logging.ERROR,  # Only log errors and above
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("fire_emergency.log"),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
-# Load fire emergency data
-SOURCE_FILENAME_FIRE = os.getenv("SOURCE_FILENAME_FIRE", "fire_data.txt")
+# Load environment variables
+load_dotenv()
+
+# Initialize embeddings, vector store, and retriever
 try:
-    loader = TextLoader(SOURCE_FILENAME_FIRE)
-    documents = loader.load()
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    splits = text_splitter.split_documents(documents)
-    vectorstore = InMemoryVectorStore.from_documents(splits, OpenAIEmbeddings())
-    retriever = vectorstore.as_retriever()
-    fire_emergency_info_retriever = create_retriever_tool(
-        retriever,
-        "fire_emergency_info_retriever",
-        "Search for fire emergency information, fire safety procedures, and emergency protocols. Use this tool to find information about fire emergencies, evacuation procedures, fire suppression methods, and safety guidelines.",
-    )
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+    vector_store = InMemoryVectorStore(embeddings)
+
+    loader = TextLoader(f"data/{config.SOURCE_FILENAME_FIRE}", encoding="utf-8")
+    docs = loader.load()
+
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
+    all_splits = text_splitter.split_documents(docs)
+
+    _ = vector_store.add_documents(documents=all_splits)
+    retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 except Exception as e:
-    logger.error(f"Error loading fire emergency data: {e}")
-    fire_emergency_info_retriever = None
+    logger.error(f"Error during initialization: {e}")
+    raise
 
 # Initialize LLM
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+llm = ChatOpenAI(model="gpt-4o-mini")
+
+fire_emergency_info_retriever = create_retriever_tool(
+    retriever,
+    "fire_emergency_info_retriever",
+    "Searches information about fire emergencies, fire safety procedures, emergency protocols, and fire guidance. Takes in a query and finds relevant fire emergency context to answer emergency situations.",
+)
 
 sys_msg = """
 You are a Fire Emergency Response Assistant specialized in providing immediate fire safety guidance and emergency protocols. Your role is to help users during fire emergencies by providing clear, accurate, and actionable fire safety information to ensure the best possible outcome in critical fire situations.
@@ -144,10 +162,76 @@ Response Language:
 Respond in the same language as the user's query - English for English queries, Spanish for Spanish queries.
 """
 
-@tool
-def submit_case(state: InjectedState) -> str:
+def submit_fire_case(state: MessagesState):
     """
-    Submit the fire emergency case after collecting all required information.
+    Submit fire emergency case to database
+    
+    Args:
+        state: Current agent state with conversation history
+        
+    Returns:
+        dict: Submission result
+    """
+    # Extract information from conversation history
+    messages = state.get("messages", [])
+    
+    # Format conversation for processing
+    formatted_conversation = format_conversation_messages(state)
+    print("-------------")
+    print("formatted_conversation", formatted_conversation)
+    print("-------------")
+    
+    try:
+        # Use LLM with structured output to extract data from conversation
+        structured_llm = llm.with_structured_output(FireEmergencySchema)
+        
+        # Create prompt for data extraction
+        extraction_prompt = f"""
+        Extract fire emergency information from the following conversation and structure it according to the FireEmergencySchema.
+        
+        Conversation:
+        {formatted_conversation}
+        
+        Please extract the following information:
+        - Reporter name, phone number
+        - Location address
+        - Fire type (building fire, vehicle fire, etc.)
+        - Severity level (critical, major, minor)
+        - Time fire started
+        - People at risk
+        - Building/structure details
+        - Hazards present
+        
+        If any information is not available in the conversation, leave it as null.
+        """
+        
+        # Extract structured data using LLM
+        fire_data = structured_llm.invoke(extraction_prompt)
+        
+        # Save to database
+        user_id = "default_user"  # In real implementation, this would come from authentication
+        case_id = save_fire_emergency(user_id, fire_data)
+        
+        print(f"Fire emergency case saved to database with ID: {case_id}")
+        
+        return {
+            "status": "submitted",
+            "case_id": case_id,
+            "message": "Fire emergency case has been submitted successfully. Emergency services have been notified."
+        }
+        
+    except Exception as e:
+        logger.error(f"Error submitting fire emergency case: {e}")
+        return {
+            "status": "error",
+            "case_id": None,
+            "message": f"Failed to submit fire emergency case: {str(e)}"
+        }
+
+@tool
+def submit_case():
+    """
+    Submit the fire emergency case with all collected information.
     
     This tool should be called ONLY when all required information has been collected:
     - Reporter details (name, phone)
@@ -158,59 +242,83 @@ def submit_case(state: InjectedState) -> str:
     - Building/structure details
     - Hazards present
     
-    The tool will extract information from the conversation and save it to the database,
-    then connect the user with professional fire department assistance.
+    Once all information is gathered, call this tool to submit the case
+    for fire department authorities to receive comprehensive fire emergency
+    details upfront, reducing response delays.
+    """
+    # This tool will be handled by the custom tool node
+    return {"status": "Submitted"}
+
+# Define tools
+tools = [fire_emergency_info_retriever, submit_case]
+tools_by_name = {t.name: t for t in tools}
+
+try:
+    llm_with_tools = llm.bind_tools(tools)
+except Exception as e:
+    logger.error(f"Error binding tools: {e}")
+    raise
+
+def generate(state: MessagesState):
+    """
+    Generates a response based on the user's message history.
+
+    Parameters:
+        state (MessagesState): The state of the conversation, containing past messages.
+
+    Returns:
+        dict: A dictionary containing the generated message.
     """
     try:
-        # Format the conversation messages
-        formatted_messages = format_conversation_messages(state)
-        
-        # Use LLM with structured output to extract fire emergency information
-        structured_llm = llm.with_structured_output(FireEmergencyInfo)
-        
-        # Extract information from the conversation
-        extracted_info = structured_llm.invoke([
-            {"role": "system", "content": "Extract fire emergency information from the conversation. Fill in all available fields based on what the user has provided."},
-            {"role": "user", "content": formatted_messages}
-        ])
-        
-        # Save to database
-        result = save_fire_emergency(
-            user_id=state.get("user_id", "unknown"),
-            fire_info=extracted_info
-        )
-        
-        if result:
-            return "✅ Fire emergency case submitted successfully! Professional fire department assistance is being coordinated for you. Your case has been logged and emergency responders are being notified."
-        else:
-            return "❌ There was an issue submitting your fire emergency case. Please try again or contact emergency services directly."
-            
+        return {"messages": [llm_with_tools.invoke([sys_msg] + state["messages"][-6:])]}
     except Exception as e:
-        logger.error(f"Error in submit_case tool: {e}")
-        return "❌ There was an error processing your fire emergency case. Please try again or contact emergency services directly."
+        logger.error(f"Error during response generation: {e}")
+        raise
 
-# Create the agent
-def create_fire_emergency_agent():
-    tools = [submit_case]
-    if fire_emergency_info_retriever:
-        tools.append(fire_emergency_info_retriever)
+def custom_tool_node(state: MessagesState):
+    """
+    Custom tool node that can access the agent's state and handle tools accordingly.
+    """
+    results: list[ToolMessage] = []
     
-    agent = create_react_agent(llm, tools, state_modifier=sys_msg)
-    return agent
+    # Get the last AI message which may contain tool calls
+    ai_msg = state["messages"][-1]
+    
+    if not hasattr(ai_msg, "tool_calls"):
+        return {"messages": results}
+    
+    for call in ai_msg.tool_calls:
+        tool_name = call["name"]
+        args = call["args"]
+        tool_call_id = call["id"]
+        
+        if tool_name == "submit_case":
+            # Handle submit_case with access to full state
+            result = submit_fire_case(state)
+            results.append(ToolMessage(
+                content=f"Case submitted successfully. Case ID: {result['case_id']}. {result['message']}", 
+                tool_call_id=tool_call_id
+            ))
+        else:
+            # Handle other tools normally
+            tool_fn = tools_by_name.get(tool_name)
+            if tool_fn is not None:
+                observation = tool_fn.invoke(args)
+                results.append(ToolMessage(content=str(observation), tool_call_id=tool_call_id))
+    
+    return {"messages": results}
 
-# Create the graph
-def create_fire_emergency_graph():
-    agent = create_fire_emergency_agent()
-    
-    # Create the graph
-    workflow = StateGraph(MessagesState)
-    workflow.add_node("agent", agent)
-    
-    # Set the entry point
-    workflow.set_entry_point("agent")
-    
-    # Compile the graph
-    return workflow.compile()
+# Build graph
+try:
+    graph_builder = StateGraph(MessagesState)
+    graph_builder.add_node("generate", generate)
+    graph_builder.add_node("tools", custom_tool_node)
+    graph_builder.add_edge(START, "generate")
+    graph_builder.add_conditional_edges("generate", tools_condition)
+    graph_builder.add_edge("tools", "generate")
 
-# Create the graph instance
-fire_emergency_graph = create_fire_emergency_graph()
+    memory = MongoDBSaver(mongodb_client)
+    fire_emergency_graph = graph_builder.compile(checkpointer=memory)
+except Exception as e:
+    logger.error(f"Error building state graph: {e}")
+    raise

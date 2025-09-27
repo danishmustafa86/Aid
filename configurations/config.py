@@ -18,6 +18,7 @@ class Config(BaseSettings):
     SOURCE_FILENAME_MEDICAL: str = os.getenv("SOURCE_FILENAME_MEDICAL","medical_data.txt")
     SOURCE_FILENAME_POLICE: str = os.getenv("SOURCE_FILENAME_POLICE","police_data.txt")
     SOURCE_FILENAME_ELECTRICITY: str = os.getenv("SOURCE_FILENAME_ELECTRICITY","electricity_data.txt")
+    SOURCE_FILENAME_FIRE: str = os.getenv("SOURCE_FILENAME_FIRE","fire_data.txt")
     
 
 
