@@ -1,15 +1,14 @@
-from fastapi import BackgroundTasks, Depends, APIRouter
+from fastapi import BackgroundTasks, APIRouter
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 from models.chat_model import ChatRequest, DeleteChatRequest
-from utils.jwt_auth import jwt_authenticate
 from configurations.db import chat_collection, checkpoint_writes_collection, checkpoints_collection, deleted_chat_collection
 from utils.police_emergency_utils import respond, save_history
 
 police_emergency_router = APIRouter()
 
 @police_emergency_router.post("/api/police-emergency/chat")
-async def police_emergency_chat_endpoint(chat_request: ChatRequest, background_tasks: BackgroundTasks, _: None = Depends(jwt_authenticate)):
+async def police_emergency_chat_endpoint(chat_request: ChatRequest, background_tasks: BackgroundTasks):
     try:
         user_id = chat_request.user_id
         user_message = chat_request.message
@@ -21,7 +20,7 @@ async def police_emergency_chat_endpoint(chat_request: ChatRequest, background_t
         return JSONResponse(status_code=500, content={"error": "We are facing an error. Please try again later."})
 
 @police_emergency_router.get("/api/police-emergency/chatHistory/{user_id}")
-async def get_police_emergency_chat_history(user_id: str,  _: None = Depends(jwt_authenticate)):
+async def get_police_emergency_chat_history(user_id: str):
     try:
         record = chat_collection.find_one({"user_id": f"police_emergency_{user_id}"})
         if not record or "history" not in record:
@@ -36,7 +35,7 @@ async def get_police_emergency_chat_history(user_id: str,  _: None = Depends(jwt
         return JSONResponse(status_code=500, content={"error": "We are facing an error. Please try again later."})
 
 @police_emergency_router.delete("/api/police-emergency/chat")
-async def delete_and_archive_police_emergency_chat(delete_request: DeleteChatRequest,  _: None = Depends(jwt_authenticate)):
+async def delete_and_archive_police_emergency_chat(delete_request: DeleteChatRequest):
     try:
         user_id = delete_request.user_id
         prefixed_user_id = f"police_emergency_{user_id}"

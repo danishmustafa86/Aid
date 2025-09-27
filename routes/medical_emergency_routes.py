@@ -1,15 +1,14 @@
-from fastapi import BackgroundTasks, Depends, APIRouter
+from fastapi import BackgroundTasks, APIRouter
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 from models.chat_model import ChatRequest, DeleteChatRequest
-from utils.jwt_auth import jwt_authenticate
 from configurations.db import chat_collection, checkpoint_writes_collection, checkpoints_collection, deleted_chat_collection
 from utils.medical_emergency_utils import respond, save_history
 
 medical_emergency_router = APIRouter()
 
 @medical_emergency_router.post("/api/medical-emergency/chat")
-async def medical_emergency_chat_endpoint(chat_request: ChatRequest, background_tasks: BackgroundTasks, _: None = Depends(jwt_authenticate)):
+async def medical_emergency_chat_endpoint(chat_request: ChatRequest, background_tasks: BackgroundTasks):
     try:
         user_id = chat_request.user_id
         user_message = chat_request.message
@@ -21,7 +20,7 @@ async def medical_emergency_chat_endpoint(chat_request: ChatRequest, background_
         return JSONResponse(status_code=500, content={"error": "We are facing an error. Please try again later."})
 
 @medical_emergency_router.get("/api/medical-emergency/chatHistory/{user_id}")
-async def get_medical_emergency_chat_history(user_id: str,  _: None = Depends(jwt_authenticate)):
+async def get_medical_emergency_chat_history(user_id: str):
     try:
         record = chat_collection.find_one({"user_id": f"medical_emergency_{user_id}"})
         if not record or "history" not in record:
@@ -36,7 +35,7 @@ async def get_medical_emergency_chat_history(user_id: str,  _: None = Depends(jw
         return JSONResponse(status_code=500, content={"error": "We are facing an error. Please try again later."})
 
 @medical_emergency_router.delete("/api/medical-emergency/chat")
-async def delete_and_archive_medical_emergency_chat(delete_request: DeleteChatRequest,  _: None = Depends(jwt_authenticate)):
+async def delete_and_archive_medical_emergency_chat(delete_request: DeleteChatRequest):
     try:
         user_id = delete_request.user_id
         prefixed_user_id = f"medical_emergency_{user_id}"

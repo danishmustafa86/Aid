@@ -1,15 +1,14 @@
-from fastapi import BackgroundTasks, Depends, APIRouter
+from fastapi import BackgroundTasks, APIRouter
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 from models.chat_model import ChatRequest, DeleteChatRequest
-from utils.jwt_auth import jwt_authenticate
 from configurations.db import chat_collection, checkpoint_writes_collection, checkpoints_collection, deleted_chat_collection
 from utils.electricity_emergency_utils import respond, save_history
 
 electricity_emergency_router = APIRouter()
 
 @electricity_emergency_router.post("/api/electricity-emergency/chat")
-async def electricity_emergency_chat_endpoint(chat_request: ChatRequest, background_tasks: BackgroundTasks, _: None = Depends(jwt_authenticate)):
+async def electricity_emergency_chat_endpoint(chat_request: ChatRequest, background_tasks: BackgroundTasks):
     try:
         user_id = chat_request.user_id
         user_message = chat_request.message
@@ -21,7 +20,7 @@ async def electricity_emergency_chat_endpoint(chat_request: ChatRequest, backgro
         return JSONResponse(status_code=500, content={"error": "We are facing an error. Please try again later."})
 
 @electricity_emergency_router.get("/api/electricity-emergency/chatHistory/{user_id}")
-async def get_electricity_emergency_chat_history(user_id: str,  _: None = Depends(jwt_authenticate)):
+async def get_electricity_emergency_chat_history(user_id: str):
     try:
         record = chat_collection.find_one({"user_id": f"electricity_emergency_{user_id}"})
         if not record or "history" not in record:
@@ -36,7 +35,7 @@ async def get_electricity_emergency_chat_history(user_id: str,  _: None = Depend
         return JSONResponse(status_code=500, content={"error": "We are facing an error. Please try again later."})
 
 @electricity_emergency_router.delete("/api/electricity-emergency/chat")
-async def delete_and_archive_electricity_emergency_chat(delete_request: DeleteChatRequest,  _: None = Depends(jwt_authenticate)):
+async def delete_and_archive_electricity_emergency_chat(delete_request: DeleteChatRequest):
     try:
         user_id = delete_request.user_id
         prefixed_user_id = f"electricity_emergency_{user_id}"
