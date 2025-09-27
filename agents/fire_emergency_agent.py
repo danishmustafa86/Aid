@@ -5,7 +5,7 @@ from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import InMemoryVectorStore
 from langchain_openai import OpenAIEmbeddings
-from langchain_community.tools import create_retriever_tool
+from langchain.tools.retriever import create_retriever_tool
 from langgraph.graph import StateGraph, ToolNode, tools_condition
 from langgraph.checkpoint.mongodb import MongoDBSaver
 from langgraph.prebuilt import create_react_agent
