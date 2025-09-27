@@ -10,6 +10,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import MessagesState, StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.mongodb import MongoDBSaver
+from langchain_core.tools import tool
 from configurations.config import config
 from configurations.db import mongodb_client
 
@@ -53,8 +54,29 @@ police_emergency_info_retriever = create_retriever_tool(
     "Searches information about police emergencies, law enforcement procedures, emergency protocols, and police guidance. Takes in a query and finds relevant law enforcement context to answer emergency situations.",
 )
 
+@tool
+def submit_case():
+    """
+    Submit the police emergency case with all collected information.
+    
+    This tool should be called ONLY when all required information has been collected:
+    - Reporter details (name, ID, phone)
+    - Incident location (exact address or landmark)
+    - Type of incident (theft, assault, domestic violence, harassment, etc.)
+    - Time of incident (when it occurred or was discovered)
+    - Description (free text + photos/videos/audio if available)
+    - Suspect details (appearance, vehicle number, known person if any)
+    - Victim details (if different from reporter)
+    - Urgency level (immediate danger, past incident, report only)
+    
+    Once all information is gathered, call this tool to submit the case
+    for police officers to receive ready-to-act incident details, cutting down
+    manual paperwork and enabling faster law enforcement response.
+    """
+    pass
+
 # Define tools
-tools = [police_emergency_info_retriever]
+tools = [police_emergency_info_retriever, submit_case]
 
 try:
     llm_with_tools = llm.bind_tools(tools)
@@ -153,6 +175,12 @@ For example: if the user asks "burglary", convert it into "What should I do duri
 - Don't explain your internal workings or tools.
 - If the tool provides extra information, only use the specific information relevant to the law enforcement emergency.
 - For follow-up law enforcement questions, ensure tool calls consider the context of prior law enforcement interactions.
+
+Case Submission:
+- Use the `submit_case` tool ONLY when you have collected ALL required information fields listed above.
+- This tool will submit the complete police emergency case for law enforcement officers.
+- Do NOT call this tool until all reporter details, incident location, incident type, time, description, suspect details, victim details, and urgency level have been gathered.
+- After calling this tool, confirm to the user that their case has been submitted and police will be notified.
 
 Response Language:
 Respond in the same language as the user's query - English for English queries, Spanish for Spanish queries.

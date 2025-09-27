@@ -9,6 +9,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import MessagesState, StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.mongodb import MongoDBSaver
+from langchain_core.tools import tool
 from configurations.config import config
 from configurations.db import mongodb_client
 
@@ -52,8 +53,27 @@ electricity_emergency_info_retriever = create_retriever_tool(
     "Searches information about electrical emergencies, power outages, electrical safety protocols, and emergency electrical procedures. Takes in a query and finds relevant electrical emergency context to answer emergency situations.",
 )
 
+@tool
+def submit_case():
+    """
+    Submit the electricity emergency case with all collected information.
+    
+    This tool should be called ONLY when all required information has been collected:
+    - Reporter details (name, phone, email)
+    - Location information (address + GPS coordinates)
+    - Type of issue (power outage, transformer issue, broken electric pole, etc.)
+    - Severity level (hazardous, major outage, minor)
+    - Time issue started (for outage tracking)
+    - Photos/videos (broken wires, burnt meters, sparks if available)
+    
+    Once all information is gathered, call this tool to submit the case
+    for electricity department to receive precise problem reports, avoiding
+    long complaint calls and site surveys, enabling faster utility response.
+    """
+    pass
+
 # Define tools
-tools = [electricity_emergency_info_retriever]
+tools = [electricity_emergency_info_retriever, submit_case]
 
 try:
     llm_with_tools = llm.bind_tools(tools)
@@ -148,6 +168,12 @@ For example: if the user asks "power outage", convert it into "What should I do 
 - Don't explain your internal workings or tools.
 - If the tool provides extra information, only use the specific information relevant to the electrical emergency.
 - For follow-up electrical questions, ensure tool calls consider the context of prior electrical interactions.
+
+Case Submission:
+- Use the `submit_case` tool ONLY when you have collected ALL required information fields listed above.
+- This tool will submit the complete electricity emergency case for utility department.
+- Do NOT call this tool until all reporter details, location, issue type, severity level, time started, and media attachments have been gathered.
+- After calling this tool, confirm to the user that their case has been submitted and electricity department will be notified.
 
 Response Language:
 Respond in the same language as the user's query - English for English queries, Spanish for Spanish queries.

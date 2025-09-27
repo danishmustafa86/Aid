@@ -9,6 +9,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import MessagesState, StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.mongodb import MongoDBSaver
+from langchain_core.tools import tool
 from configurations.config import config
 from configurations.db import mongodb_client
 
@@ -52,8 +53,28 @@ medical_emergency_info_retriever = create_retriever_tool(
     "Searches information about medical emergencies, first aid procedures, emergency protocols, and medical guidance. Takes in a query and finds relevant medical context to answer emergency situations.",
 )
 
+@tool
+def submit_case():
+    """
+    Submit the medical emergency case with all collected information.
+    
+    This tool should be called ONLY when all required information has been collected:
+    - Patient details (name, age, gender, ID, phone)
+    - Location information (address or GPS coordinates)
+    - Emergency type (accident, heart attack, unconsciousness, etc.)
+    - Symptoms description (pain, fever, chest pressure, visible injuries)
+    - Critical medical information (allergies, medications, existing conditions)
+    - Urgency level (severe, moderate, minor)
+    - Contact person (if patient unconscious)
+    
+    Once all information is gathered, call this tool to submit the case
+    for paramedics and nurses to receive comprehensive medical history
+    and situation details upfront, reducing response delays.
+    """
+    pass
+
 # Define tools
-tools = [medical_emergency_info_retriever]
+tools = [medical_emergency_info_retriever, submit_case]
 
 try:
     llm_with_tools = llm.bind_tools(tools)
@@ -148,6 +169,12 @@ For example: if the user asks "heart attack", convert it into "What are the symp
 - Don't explain your internal workings or tools.
 - If the tool provides extra information, only use the specific information relevant to the medical emergency.
 - For follow-up medical questions, ensure tool calls consider the context of prior medical interactions.
+
+Case Submission:
+- Use the `submit_case` tool ONLY when you have collected ALL required information fields listed above.
+- This tool will submit the complete medical emergency case for paramedics and nurses.
+- Do NOT call this tool until all patient details, location, emergency type, symptoms, medical history, urgency level, and contact information have been gathered.
+- After calling this tool, confirm to the user that their case has been submitted and emergency services will be notified.
 
 Response Language:
 Respond in the same language as the user's query - English for English queries, Spanish for Spanish queries.
