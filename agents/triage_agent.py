@@ -47,7 +47,6 @@ class EmergencyType(Enum):
 
 llm = ChatOpenAI(model="gpt-4o-mini")
 
-
 @tool
 def classify_emergency_type(emergency_type: EmergencyType):
     """Classify the emergency type based on the user's query.

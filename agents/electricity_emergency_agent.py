@@ -7,11 +7,15 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import MessagesState, StateGraph, START, END
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.prebuilt import tools_condition
 from langgraph.checkpoint.mongodb import MongoDBSaver
 from langchain_core.tools import tool
+from langchain_core.messages import ToolMessage
 from configurations.config import config
 from configurations.db import mongodb_client
+from utils.message_formatter import format_conversation_messages
+from utils.database_utils import save_electricity_emergency
+from agents.schemas.agent_schemas import ElectricityEmergencySchema
 
 # Configure logging
 logging.basicConfig(
@@ -53,6 +57,70 @@ electricity_emergency_info_retriever = create_retriever_tool(
     "Searches information about electrical emergencies, power outages, electrical safety protocols, and emergency electrical procedures. Takes in a query and finds relevant electrical emergency context to answer emergency situations.",
 )
 
+def submit_electricity_case(state: MessagesState):
+    """
+    Submit electricity emergency case to database
+    
+    Args:
+        state: Current agent state with conversation history
+        
+    Returns:
+        dict: Submission result
+    """
+    # Extract information from conversation history
+    messages = state.get("messages", [])
+    
+    # Format conversation for processing
+    formatted_conversation = format_conversation_messages(state)
+    print("-------------")
+    print("formatted_conversation", formatted_conversation)
+    print("-------------")
+    
+    try:
+        # Use LLM with structured output to extract data from conversation
+        structured_llm = llm.with_structured_output(ElectricityEmergencySchema)
+        
+        # Create prompt for data extraction
+        extraction_prompt = f"""
+        Extract electricity emergency information from the following conversation and structure it according to the ElectricityEmergencySchema.
+        
+        Conversation:
+        {formatted_conversation}
+        
+        Please extract the following information:
+        - Reporter name, phone number
+        - Location address
+        - Type of issue (power outage, transformer issue, broken electric pole, etc.)
+        - Severity level (hazardous, major outage, minor)
+        - Time issue started
+        - Description of the problem
+        
+        If any information is not available in the conversation, leave it as null.
+        """
+        
+        # Extract structured data using LLM
+        electricity_data = structured_llm.invoke(extraction_prompt)
+        
+        # Save to database
+        user_id = "default_user"  # In real implementation, this would come from authentication
+        case_id = save_electricity_emergency(user_id, electricity_data)
+        
+        print(f"Electricity emergency case saved to database with ID: {case_id}")
+        
+        return {
+            "status": "submitted",
+            "case_id": case_id,
+            "message": "Electricity emergency case has been submitted successfully. Utility department has been notified."
+        }
+        
+    except Exception as e:
+        logger.error(f"Error submitting electricity emergency case: {e}")
+        return {
+            "status": "error",
+            "case_id": None,
+            "message": f"Failed to submit electricity emergency case: {str(e)}"
+        }
+
 @tool
 def submit_case():
     """
@@ -70,10 +138,12 @@ def submit_case():
     for electricity department to receive precise problem reports, avoiding
     long complaint calls and site surveys, enabling faster utility response.
     """
-    pass
+    # This tool will be handled by the custom tool node
+    return {"status": "Submitted"}
 
 # Define tools
 tools = [electricity_emergency_info_retriever, submit_case]
+tools_by_name = {t.name: t for t in tools}
 
 try:
     llm_with_tools = llm.bind_tools(tools)
@@ -195,11 +265,44 @@ def generate(state: MessagesState):
         logger.error(f"Error during response generation: {e}")
         raise
 
+def custom_tool_node(state: MessagesState):
+    """
+    Custom tool node that can access the agent's state and handle tools accordingly.
+    """
+    results: list[ToolMessage] = []
+    
+    # Get the last AI message which may contain tool calls
+    ai_msg = state["messages"][-1]
+    
+    if not hasattr(ai_msg, "tool_calls"):
+        return {"messages": results}
+    
+    for call in ai_msg.tool_calls:
+        tool_name = call["name"]
+        args = call["args"]
+        tool_call_id = call["id"]
+        
+        if tool_name == "submit_case":
+            # Handle submit_case with access to full state
+            result = submit_electricity_case(state)
+            results.append(ToolMessage(
+                content=f"Case submitted successfully. Case ID: {result['case_id']}. {result['message']}", 
+                tool_call_id=tool_call_id
+            ))
+        else:
+            # Handle other tools normally
+            tool_fn = tools_by_name.get(tool_name)
+            if tool_fn is not None:
+                observation = tool_fn.invoke(args)
+                results.append(ToolMessage(content=str(observation), tool_call_id=tool_call_id))
+    
+    return {"messages": results}
+
 # Build graph
 try:
     graph_builder = StateGraph(MessagesState)
-    graph_builder.add_node(generate)
-    graph_builder.add_node("tools", ToolNode(tools))
+    graph_builder.add_node("generate", generate)
+    graph_builder.add_node("tools", custom_tool_node)
     graph_builder.add_edge(START, "generate")
     graph_builder.add_conditional_edges("generate", tools_condition)
     graph_builder.add_edge("tools", "generate")
