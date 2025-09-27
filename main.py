@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from routes.health_check_routes import health_check_router
 from routes.medical_emergency_routes import medical_emergency_router
 from routes.electricity_emergency_routes import electricity_emergency_router
@@ -25,6 +26,11 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Mount static files directory for serving audio files
+import os
+os.makedirs("audio_files", exist_ok=True)
+app.mount("/audio", StaticFiles(directory="audio_files"), name="audio")
 
 @app.on_event("startup")
 async def startup_event():

@@ -1,20 +1,76 @@
-from fastapi import BackgroundTasks, APIRouter
+from fastapi import BackgroundTasks, APIRouter, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
-from models.chat_model import ChatRequest, DeleteChatRequest
+import tempfile
+import os
+import asyncio
+from models.chat_model import ChatRequest, VoiceChatRequest, DeleteChatRequest
 from configurations.db import chat_collection, checkpoint_writes_collection, checkpoints_collection, deleted_chat_collection
 from utils.electricity_emergency_utils import respond, save_history
+from utils.voice_utils import speech_to_text, text_to_speech
 
 electricity_emergency_router = APIRouter()
 
-@electricity_emergency_router.post("/api/electricity-emergency/chat")
-async def electricity_emergency_chat_endpoint(chat_request: ChatRequest, background_tasks: BackgroundTasks):
+async def cleanup_audio_file(audio_path: str, delay_seconds: int = 300):
+    """
+    Clean up audio file after specified delay (default 5 minutes).
+    This prevents disk space issues from accumulated audio files.
+    """
+    await asyncio.sleep(delay_seconds)
     try:
-        user_id = chat_request.user_id
-        user_message = chat_request.message
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+            print(f"Cleaned up audio file: {audio_path}")
+    except Exception as e:
+        print(f"Error cleaning up audio file {audio_path}: {str(e)}")
+
+@electricity_emergency_router.post("/api/electricity-emergency/chat")
+async def electricity_emergency_chat_endpoint(
+    user_id: str = Form(...),
+    message: str = Form(""),
+    input_type: str = Form("text"),
+    audio: UploadFile = File(None),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    try:
+        user_message = message
+        
+        # Step 1: Handle input based on input_type
+        if input_type == "voice" and audio is not None:
+            temp_audio_path = f"temp_{user_id}.wav"
+            with open(temp_audio_path, "wb") as f:
+                f.write(await audio.read())
+            user_message = speech_to_text(temp_audio_path)
+            os.remove(temp_audio_path)
+            print(f"Voice converted to text: {user_message}")
+        elif input_type == "text" and message:
+            user_message = message
+        
+        # Ensure we have a message to process
+        if not user_message:
+            return JSONResponse(status_code=400, content={"error": "No message provided"})
+        
         bot_response = await respond(user_id, user_message)
         background_tasks.add_task(save_history, user_id, user_message, bot_response)
-        return JSONResponse(status_code=200, content={"response": bot_response})
+        
+        # Generate audio response if input was voice
+        audio_response_path = None
+        if input_type == "voice":
+            try:
+                audio_response_path = f"audio_files/response_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
+                text_to_speech(bot_response, save_path=audio_response_path)
+                print(f"Audio response generated: {audio_response_path}")
+                # Schedule cleanup of audio file after 5 minutes
+                background_tasks.add_task(cleanup_audio_file, audio_response_path, 300)
+            except Exception as audio_error:
+                print(f"Error generating audio response: {str(audio_error)}")
+                # Continue without audio if generation fails
+        
+        response_data = {"response": bot_response}
+        if audio_response_path:
+            response_data["audio_response_path"] = f"/audio/{os.path.basename(audio_response_path)}"
+            
+        return JSONResponse(status_code=200, content=response_data)
     except Exception as e:
         print("Error while working on electricity emergency chat request: ",str(e))
         return JSONResponse(status_code=500, content={"error": "We are facing an error. Please try again later."})
