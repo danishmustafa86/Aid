@@ -20,6 +20,15 @@ class Config(BaseSettings):
     SOURCE_FILENAME_ELECTRICITY: str = os.getenv("SOURCE_FILENAME_ELECTRICITY","electricity_data.txt")
     SOURCE_FILENAME_FIRE: str = os.getenv("SOURCE_FILENAME_FIRE","fire_data.txt")
     
+    # SMTP Configuration
+    SMTP_HOST: str = os.getenv("SMTP_HOST","smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT","587"))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME","")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD","")
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS","true").lower() == "true"
+    SMTP_USE_SSL: bool = os.getenv("SMTP_USE_SSL","false").lower() == "true"
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM","")
+    
 
 
 config = Config()

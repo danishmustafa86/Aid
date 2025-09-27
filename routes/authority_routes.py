@@ -7,6 +7,7 @@ from utils.database_utils import (
     get_emergency_report_by_id,
     create_notification
 )
+from utils.email_service import email_service
 from models.database_models import EmergencyStatus
 import logging
 
@@ -44,13 +45,38 @@ class EmergencyCaseResponse(BaseModel):
     # Dynamic fields based on emergency type
     data: dict
 
-def mock_send_notification(user_id: str, title: str, message: str, notification_type: str, emergency_id: str, emergency_type: str) -> bool:
+def send_notification_email(user_id: str, title: str, message: str, notification_type: str, emergency_id: str, emergency_type: str) -> bool:
     """
-    Mock function to send notification to user
-    In a real implementation, this would integrate with email, SMS, push notifications, etc.
+    Send email notification to user
+    For now, sends to zainatteeq@gmail.com as requested
     """
-    logger.info(f"Mock notification sent to user {user_id}: {title} - {message}")
-    return True
+    try:
+        # For now, send to zainatteeq@gmail.com as requested
+        recipient_email = "zainatteeq@gmail.com"
+        
+        if notification_type == "status_update":
+            # Send status update email
+            return email_service.send_status_update_email(
+                to_email=recipient_email,
+                emergency_type=emergency_type,
+                emergency_id=emergency_id,
+                status="IN_PROGRESS"
+            )
+        elif notification_type == "resolution_request":
+            # Send resolution request email
+            return email_service.send_resolution_request_email(
+                to_email=recipient_email,
+                emergency_type=emergency_type,
+                emergency_id=emergency_id,
+                message=message
+            )
+        else:
+            logger.warning(f"Unknown notification type: {notification_type}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error sending email notification: {e}")
+        return False
 
 # Medical Emergency Authority Endpoints
 @authority_router.get("/medical/emergencies", response_model=List[EmergencyCaseResponse])
@@ -120,11 +146,20 @@ async def update_medical_emergency_status(emergency_id: str, request: StatusUpda
         if not success:
             raise HTTPException(status_code=404, detail="Emergency case not found")
         
-        # Create notification for user based on status change
+        # Send email notification for user based on status change
         case = get_emergency_report_by_id(emergency_id, "medical")
         if case:
             if new_status == EmergencyStatus.IN_PROGRESS:
                 create_notification(
+                    user_id=case.user_id,
+                    title="Case Assigned",
+                    message="Your medical emergency case has been assigned to medical authorities and is now in progress.",
+                    notification_type="status_update",
+                    emergency_id=emergency_id,
+                    emergency_type="medical"
+                )
+                # Send email notification
+                send_notification_email(
                     user_id=case.user_id,
                     title="Case Assigned",
                     message="Your medical emergency case has been assigned to medical authorities and is now in progress.",
@@ -176,8 +211,8 @@ async def request_medical_resolution(emergency_id: str, request: ResolutionReque
             emergency_type="medical"
         )
         
-        # Mock send notification (email, SMS, push notification, etc.)
-        notification_sent = mock_send_notification(
+        # Send email notification
+        notification_sent = send_notification_email(
             user_id=case.user_id,
             title="Resolution Request",
             message=request.message or "Medical authorities have completed their work and request your confirmation to mark this case as resolved.",
@@ -264,11 +299,20 @@ async def update_police_emergency_status(emergency_id: str, request: StatusUpdat
         if not success:
             raise HTTPException(status_code=404, detail="Emergency case not found")
         
-        # Create notification for user based on status change
+        # Send email notification for user based on status change
         case = get_emergency_report_by_id(emergency_id, "police")
         if case:
             if new_status == EmergencyStatus.IN_PROGRESS:
                 create_notification(
+                    user_id=case.user_id,
+                    title="Case Assigned",
+                    message="Your police incident case has been assigned to law enforcement authorities and is now in progress.",
+                    notification_type="status_update",
+                    emergency_id=emergency_id,
+                    emergency_type="police"
+                )
+                # Send email notification
+                send_notification_email(
                     user_id=case.user_id,
                     title="Case Assigned",
                     message="Your police incident case has been assigned to law enforcement authorities and is now in progress.",
@@ -320,8 +364,8 @@ async def request_police_resolution(emergency_id: str, request: ResolutionReques
             emergency_type="police"
         )
         
-        # Mock send notification (email, SMS, push notification, etc.)
-        notification_sent = mock_send_notification(
+        # Send email notification
+        notification_sent = send_notification_email(
             user_id=case.user_id,
             title="Resolution Request",
             message=request.message or "Police authorities have completed their work and request your confirmation to mark this case as resolved.",
@@ -407,11 +451,20 @@ async def update_electricity_emergency_status(emergency_id: str, request: Status
         if not success:
             raise HTTPException(status_code=404, detail="Emergency case not found")
         
-        # Create notification for user based on status change
+        # Send email notification for user based on status change
         case = get_emergency_report_by_id(emergency_id, "electricity")
         if case:
             if new_status == EmergencyStatus.IN_PROGRESS:
                 create_notification(
+                    user_id=case.user_id,
+                    title="Case Assigned",
+                    message="Your electricity issue has been assigned to utility authorities and is now in progress.",
+                    notification_type="status_update",
+                    emergency_id=emergency_id,
+                    emergency_type="electricity"
+                )
+                # Send email notification
+                send_notification_email(
                     user_id=case.user_id,
                     title="Case Assigned",
                     message="Your electricity issue has been assigned to utility authorities and is now in progress.",
@@ -463,8 +516,8 @@ async def request_electricity_resolution(emergency_id: str, request: ResolutionR
             emergency_type="electricity"
         )
         
-        # Mock send notification (email, SMS, push notification, etc.)
-        notification_sent = mock_send_notification(
+        # Send email notification
+        notification_sent = send_notification_email(
             user_id=case.user_id,
             title="Resolution Request",
             message=request.message or "Electricity authorities have completed their work and request your confirmation to mark this case as resolved.",
@@ -552,11 +605,20 @@ async def update_fire_emergency_status(emergency_id: str, request: StatusUpdateR
         if not success:
             raise HTTPException(status_code=404, detail="Emergency case not found")
         
-        # Create notification for user based on status change
+        # Send email notification for user based on status change
         case = get_emergency_report_by_id(emergency_id, "fire")
         if case:
             if new_status == EmergencyStatus.IN_PROGRESS:
                 create_notification(
+                    user_id=case.user_id,
+                    title="Case Assigned",
+                    message="Your fire emergency case has been assigned to fire department authorities and is now in progress.",
+                    notification_type="status_update",
+                    emergency_id=emergency_id,
+                    emergency_type="fire"
+                )
+                # Send email notification
+                send_notification_email(
                     user_id=case.user_id,
                     title="Case Assigned",
                     message="Your fire emergency case has been assigned to fire department authorities and is now in progress.",
@@ -608,8 +670,8 @@ async def request_fire_resolution(emergency_id: str, request: ResolutionRequest)
             emergency_type="fire"
         )
         
-        # Mock send notification (email, SMS, push notification, etc.)
-        notification_sent = mock_send_notification(
+        # Send email notification
+        notification_sent = send_notification_email(
             user_id=case.user_id,
             title="Resolution Request",
             message=request.message or "Fire department authorities have completed their work and request your confirmation to mark this case as resolved.",
