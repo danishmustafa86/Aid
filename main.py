@@ -4,6 +4,9 @@ from routes.medical_emergency_routes import medical_emergency_router
 from routes.electricity_emergency_routes import electricity_emergency_router
 from routes.police_emergency_routes import police_emergency_router
 from routes.triage_routes import triage_router
+from routes.authority_routes import authority_router
+from routes.notification_routes import notification_router
+from routes.followup_routes import followup_router
 from models.database_models import Base
 from configurations.postgres_db import engine
 import logging
@@ -33,3 +36,6 @@ app.include_router(medical_emergency_router)
 app.include_router(electricity_emergency_router)
 app.include_router(police_emergency_router)
 app.include_router(triage_router)
+app.include_router(authority_router)
+app.include_router(notification_router)
+app.include_router(followup_router)

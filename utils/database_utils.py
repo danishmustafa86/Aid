@@ -3,7 +3,9 @@ from models.database_models import (
     MedicalEmergencyReport, 
     PoliceEmergencyReport, 
     ElectricityEmergencyReport, 
-    TriageReport
+    TriageReport,
+    Notification,
+    EmergencyStatus
 )
 from agents.schemas.agent_schemas import (
     MedicalEmergencySchema,
@@ -298,5 +300,199 @@ def get_emergency_report_by_id(report_id: str, emergency_type: str):
     except Exception as e:
         logger.error(f"Error fetching emergency report: {e}")
         raise
+    finally:
+        db.close()
+
+# Status management functions
+def update_emergency_status(emergency_id: str, emergency_type: str, new_status: EmergencyStatus) -> bool:
+    """
+    Update the status of an emergency case
+    
+    Args:
+        emergency_id: ID of the emergency case
+        emergency_type: Type of emergency (medical, police, electricity)
+        new_status: New status to set
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    db = get_db_session()
+    try:
+        if emergency_type.lower() == "medical":
+            report = db.query(MedicalEmergencyReport).filter(MedicalEmergencyReport.id == emergency_id).first()
+        elif emergency_type.lower() == "police":
+            report = db.query(PoliceEmergencyReport).filter(PoliceEmergencyReport.id == emergency_id).first()
+        elif emergency_type.lower() == "electricity":
+            report = db.query(ElectricityEmergencyReport).filter(ElectricityEmergencyReport.id == emergency_id).first()
+        else:
+            return False
+        
+        if report:
+            report.status = new_status
+            db.commit()
+            logger.info(f"Updated {emergency_type} emergency {emergency_id} status to {new_status.value}")
+            return True
+        return False
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating emergency status: {e}")
+        return False
+    finally:
+        db.close()
+
+def get_emergency_cases_by_status(emergency_type: str, status: EmergencyStatus = None) -> list:
+    """
+    Get emergency cases by status
+    
+    Args:
+        emergency_type: Type of emergency (medical, police, electricity)
+        status: Optional status filter
+        
+    Returns:
+        list: List of emergency cases
+    """
+    db = get_db_session()
+    try:
+        if emergency_type.lower() == "medical":
+            query = db.query(MedicalEmergencyReport)
+        elif emergency_type.lower() == "police":
+            query = db.query(PoliceEmergencyReport)
+        elif emergency_type.lower() == "electricity":
+            query = db.query(ElectricityEmergencyReport)
+        else:
+            return []
+        
+        if status:
+            query = query.filter(query.column_descriptions[0]['entity'].status == status)
+        
+        return query.order_by(query.column_descriptions[0]['entity'].created_at.desc()).all()
+        
+    except Exception as e:
+        logger.error(f"Error fetching emergency cases by status: {e}")
+        return []
+    finally:
+        db.close()
+
+# Notification functions
+def create_notification(user_id: str, title: str, message: str, notification_type: str, 
+                       emergency_id: str = None, emergency_type: str = None) -> str:
+    """
+    Create a new notification
+    
+    Args:
+        user_id: User ID
+        title: Notification title
+        message: Notification message
+        notification_type: Type of notification
+        emergency_id: Optional emergency case ID
+        emergency_type: Optional emergency type
+        
+    Returns:
+        str: Notification ID
+    """
+    db = get_db_session()
+    try:
+        notification = Notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            emergency_id=emergency_id,
+            emergency_type=emergency_type
+        )
+        
+        db.add(notification)
+        db.commit()
+        db.refresh(notification)
+        
+        logger.info(f"Created notification {notification.id} for user {user_id}")
+        return notification.id
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating notification: {e}")
+        raise
+    finally:
+        db.close()
+
+def get_user_notifications(user_id: str, is_read: str = None) -> list:
+    """
+    Get notifications for a user
+    
+    Args:
+        user_id: User ID
+        is_read: Optional filter by read status
+        
+    Returns:
+        list: List of notifications
+    """
+    db = get_db_session()
+    try:
+        query = db.query(Notification).filter(Notification.user_id == user_id)
+        
+        if is_read is not None:
+            query = query.filter(Notification.is_read == is_read)
+        
+        return query.order_by(Notification.created_at.desc()).all()
+        
+    except Exception as e:
+        logger.error(f"Error fetching user notifications: {e}")
+        return []
+    finally:
+        db.close()
+
+def mark_notification_read(notification_id: str) -> bool:
+    """
+    Mark a notification as read
+    
+    Args:
+        notification_id: Notification ID
+        
+    Returns:
+        bool: True if successful
+    """
+    db = get_db_session()
+    try:
+        notification = db.query(Notification).filter(Notification.id == notification_id).first()
+        if notification:
+            notification.is_read = "true"
+            db.commit()
+            logger.info(f"Marked notification {notification_id} as read")
+            return True
+        return False
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error marking notification as read: {e}")
+        return False
+    finally:
+        db.close()
+
+def update_notification_approval(notification_id: str, is_approved: str) -> bool:
+    """
+    Update notification approval status
+    
+    Args:
+        notification_id: Notification ID
+        is_approved: Approval status (true/false)
+        
+    Returns:
+        bool: True if successful
+    """
+    db = get_db_session()
+    try:
+        notification = db.query(Notification).filter(Notification.id == notification_id).first()
+        if notification:
+            notification.is_approved = is_approved
+            db.commit()
+            logger.info(f"Updated notification {notification_id} approval to {is_approved}")
+            return True
+        return False
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating notification approval: {e}")
+        return False
     finally:
         db.close()
