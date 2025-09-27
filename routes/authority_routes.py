@@ -21,9 +21,19 @@ class StatusUpdateRequest(BaseModel):
     new_status: str
     message: Optional[str] = None
 
+class ResolutionRequest(BaseModel):
+    emergency_id: str
+    emergency_type: str
+    message: Optional[str] = None
+
 class StatusUpdateResponse(BaseModel):
     success: bool
     message: str
+
+class ResolutionRequestResponse(BaseModel):
+    success: bool
+    message: str
+    notification_sent: bool
 
 class EmergencyCaseResponse(BaseModel):
     id: str
@@ -33,6 +43,14 @@ class EmergencyCaseResponse(BaseModel):
     updated_at: str
     # Dynamic fields based on emergency type
     data: dict
+
+def mock_send_notification(user_id: str, title: str, message: str, notification_type: str, emergency_id: str, emergency_type: str) -> bool:
+    """
+    Mock function to send notification to user
+    In a real implementation, this would integrate with email, SMS, push notifications, etc.
+    """
+    logger.info(f"Mock notification sent to user {user_id}: {title} - {message}")
+    return True
 
 # Medical Emergency Authority Endpoints
 @authority_router.get("/medical/emergencies", response_model=List[EmergencyCaseResponse])
@@ -135,6 +153,51 @@ async def update_medical_emergency_status(emergency_id: str, request: StatusUpda
         logger.error(f"Error updating medical emergency status: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@authority_router.post("/medical/emergencies/{emergency_id}/request-resolution", response_model=ResolutionRequestResponse)
+async def request_medical_resolution(emergency_id: str, request: ResolutionRequest):
+    """Request user approval to mark medical emergency case as resolved"""
+    try:
+        # Get the case to verify it exists and get user info
+        case = get_emergency_report_by_id(emergency_id, "medical")
+        if not case:
+            raise HTTPException(status_code=404, detail="Emergency case not found")
+        
+        # Check if case is in progress
+        if case.status != EmergencyStatus.IN_PROGRESS:
+            raise HTTPException(status_code=400, detail="Case must be IN_PROGRESS to request resolution")
+        
+        # Create notification in database
+        create_notification(
+            user_id=case.user_id,
+            title="Resolution Request",
+            message=request.message or "Medical authorities have completed their work and request your confirmation to mark this case as resolved.",
+            notification_type="resolution_request",
+            emergency_id=emergency_id,
+            emergency_type="medical"
+        )
+        
+        # Mock send notification (email, SMS, push notification, etc.)
+        notification_sent = mock_send_notification(
+            user_id=case.user_id,
+            title="Resolution Request",
+            message=request.message or "Medical authorities have completed their work and request your confirmation to mark this case as resolved.",
+            notification_type="resolution_request",
+            emergency_id=emergency_id,
+            emergency_type="medical"
+        )
+        
+        return ResolutionRequestResponse(
+            success=True,
+            message="Resolution request sent to user. Case will be marked as resolved only after user approval.",
+            notification_sent=notification_sent
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error requesting medical resolution: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Police Emergency Authority Endpoints
 @authority_router.get("/police/emergencies", response_model=List[EmergencyCaseResponse])
 async def get_police_emergencies(
@@ -234,6 +297,51 @@ async def update_police_emergency_status(emergency_id: str, request: StatusUpdat
         logger.error(f"Error updating police emergency status: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@authority_router.post("/police/emergencies/{emergency_id}/request-resolution", response_model=ResolutionRequestResponse)
+async def request_police_resolution(emergency_id: str, request: ResolutionRequest):
+    """Request user approval to mark police emergency case as resolved"""
+    try:
+        # Get the case to verify it exists and get user info
+        case = get_emergency_report_by_id(emergency_id, "police")
+        if not case:
+            raise HTTPException(status_code=404, detail="Emergency case not found")
+        
+        # Check if case is in progress
+        if case.status != EmergencyStatus.IN_PROGRESS:
+            raise HTTPException(status_code=400, detail="Case must be IN_PROGRESS to request resolution")
+        
+        # Create notification in database
+        create_notification(
+            user_id=case.user_id,
+            title="Resolution Request",
+            message=request.message or "Police authorities have completed their work and request your confirmation to mark this case as resolved.",
+            notification_type="resolution_request",
+            emergency_id=emergency_id,
+            emergency_type="police"
+        )
+        
+        # Mock send notification (email, SMS, push notification, etc.)
+        notification_sent = mock_send_notification(
+            user_id=case.user_id,
+            title="Resolution Request",
+            message=request.message or "Police authorities have completed their work and request your confirmation to mark this case as resolved.",
+            notification_type="resolution_request",
+            emergency_id=emergency_id,
+            emergency_type="police"
+        )
+        
+        return ResolutionRequestResponse(
+            success=True,
+            message="Resolution request sent to user. Case will be marked as resolved only after user approval.",
+            notification_sent=notification_sent
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error requesting police resolution: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Electricity Emergency Authority Endpoints
 @authority_router.get("/electricity/emergencies", response_model=List[EmergencyCaseResponse])
 async def get_electricity_emergencies(
@@ -330,6 +438,51 @@ async def update_electricity_emergency_status(emergency_id: str, request: Status
         raise
     except Exception as e:
         logger.error(f"Error updating electricity emergency status: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@authority_router.post("/electricity/emergencies/{emergency_id}/request-resolution", response_model=ResolutionRequestResponse)
+async def request_electricity_resolution(emergency_id: str, request: ResolutionRequest):
+    """Request user approval to mark electricity emergency case as resolved"""
+    try:
+        # Get the case to verify it exists and get user info
+        case = get_emergency_report_by_id(emergency_id, "electricity")
+        if not case:
+            raise HTTPException(status_code=404, detail="Emergency case not found")
+        
+        # Check if case is in progress
+        if case.status != EmergencyStatus.IN_PROGRESS:
+            raise HTTPException(status_code=400, detail="Case must be IN_PROGRESS to request resolution")
+        
+        # Create notification in database
+        create_notification(
+            user_id=case.user_id,
+            title="Resolution Request",
+            message=request.message or "Electricity authorities have completed their work and request your confirmation to mark this case as resolved.",
+            notification_type="resolution_request",
+            emergency_id=emergency_id,
+            emergency_type="electricity"
+        )
+        
+        # Mock send notification (email, SMS, push notification, etc.)
+        notification_sent = mock_send_notification(
+            user_id=case.user_id,
+            title="Resolution Request",
+            message=request.message or "Electricity authorities have completed their work and request your confirmation to mark this case as resolved.",
+            notification_type="resolution_request",
+            emergency_id=emergency_id,
+            emergency_type="electricity"
+        )
+        
+        return ResolutionRequestResponse(
+            success=True,
+            message="Resolution request sent to user. Case will be marked as resolved only after user approval.",
+            notification_sent=notification_sent
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error requesting electricity resolution: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # General Authority Endpoints
