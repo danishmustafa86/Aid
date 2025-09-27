@@ -1,0 +1,6 @@
+Four Agents:
+
+Triage Agent
+Medical Emergency
+Police Emergency
+Electricity issues

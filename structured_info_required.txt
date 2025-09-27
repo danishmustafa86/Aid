@@ -1,0 +1,71 @@
+1️⃣ Medical Emergency Agent
+
+Purpose: Quickly assess health crises & prepare info for paramedics / nurses.
+
+Fields to capture:
+
+Patient details: Name, age, gender, ID (optional), phone.
+
+Location: Current address or GPS (to send ambulance).
+
+Emergency type (selectable): Accident, heart attack, unconsciousness, bleeding, breathing issue, etc.
+
+Symptoms description (free text + checkboxes): Pain, fever, chest pressure, visible injuries.
+
+Critical info: Allergies, medications, existing conditions (diabetes, hypertension, etc.).
+
+Urgency level (auto-triaged): Severe (life-threatening), Moderate, Minor.
+
+Contact person: Relative/friend phone number (if patient unconscious).
+
+⚡ Why useful: Paramedics/triage nurses get all critical medical history & situation upfront, reducing delays.
+
+2️⃣ Police Emergency Agent
+
+Purpose: Capture crime/incident info without victims waiting hours to file FIR/paper reports.
+
+Fields to capture:
+
+Reporter details: Name, ID (optional), phone.
+
+Incident location: Exact address / landmark.
+
+Type of incident: Theft, assault, domestic violence, harassment, missing person, suspicious activity.
+
+Time of incident: When it occurred / discovered.
+
+Description: Free text + option to attach photos/videos/audio.
+
+Suspect details (if any): Appearance, vehicle number, known person.
+
+Victim details: If different from reporter (e.g., child, neighbor).
+
+Urgency: Immediate danger / Past incident / Report only.
+
+⚡ Why useful: Police officers get ready-to-act incident details, cutting down manual paperwork and enabling faster action.
+
+3️⃣ Electricity Issues Agent
+
+Purpose: Handle civic/utility emergencies (outages, sparks, accidents with wires).
+
+Fields to capture:
+
+Reporter details: Name, phone, email (optional).
+
+Location: Address + GPS (for linemen to reach).
+
+Type of issue: Power outage, transformer issue, broken electric pole, sparks/fire hazard, meter fault, billing complaint.
+
+Severity:
+
+Hazardous (fire, live wire on ground, electrocution risk).
+
+Major outage (whole block/area).
+
+Minor (individual house/connection).
+
+Time issue started: For outage tracking.
+
+Photos/videos: Broken wires, burnt meters, sparks (optional but very useful).
+
+⚡ Why useful: Electricity dept. receives precise problem reports, avoids long complaint calls & site surveys.

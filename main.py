@@ -1,0 +1,13 @@
+from fastapi import FastAPI
+from routes.health_check_routes import health_check_router
+from routes.medical_emergency_routes import medical_emergency_router
+from routes.electricity_emergency_routes import electricity_emergency_router
+from routes.police_emergency_routes import police_emergency_router
+from routes.triage_routes import triage_router
+
+app = FastAPI()
+app.include_router(health_check_router)
+app.include_router(medical_emergency_router)
+app.include_router(electricity_emergency_router)
+app.include_router(police_emergency_router)
+app.include_router(triage_router)

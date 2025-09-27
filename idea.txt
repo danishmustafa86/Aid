@@ -1,0 +1,29 @@
+AidLinkAI
+
+Problem:
+Frontline workers (triage nurses, emergency officers, council staff, social services, crime responders) and
+citizens both struggle with long queues, unclear protocols, and slow case handling. Citizens often don’t
+know where to go, while staff face overwhelming workloads.
+Challenge:
+Build a multi-agent AI system that bridges citizens and frontline workers by:
+- Triage Agent (Frontline): Analyzes case data (type of emergency, citizen requests) and decides
+urgency.
+- Guidance Agent (Frontline): Matches case to the right service (hospital department, emergency
+team, any other service).
+- Booking Agent (Citizen-facing): Autonomously books appointments, pre-fills forms, or drafts
+emails/SMS to the right office.
+- Follow-up Agent (Citizen-facing): Sends reminders, tracks service progress, and explains updates in
+plain language.
+- Equity Oversight Agent: Tracks service demand vs. capacity and generates insights for
+administrators.
+Dataset: Mock emergency requests by the citizens, list of hospitals, wards etc.
+Deliverables:
+- Working demo of emergency service agent
+- The AI agents collaborate to assess the case → find the right service → autonomously book an
+appointment/fill the form → provide a plain-language confirmation (e.g., “Appointment booked at XYZ
+clinic tomorrow at 9am. Bring your ID card.”).
+- Must include a degraded mode for offline, low-bandwidth, or low-cost usage.
+Links : -
+https://gbp.gov.pk/police-stations/
+https://police.kp.gov.pk/page/police_station_police_posts
+

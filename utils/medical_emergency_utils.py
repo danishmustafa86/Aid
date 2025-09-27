@@ -1,0 +1,46 @@
+from configurations.db import chat_collection
+from datetime import datetime, timezone
+from langchain.schema import AIMessage
+from agents.medical_emergency_agent import medical_emergency_graph
+
+
+def load_history(user_id: str):
+    """Load user history from MongoDB."""
+    try:
+        prefixed_user_id = f"medical_emergency_{user_id}"
+        record = chat_collection.find_one({"user_id": prefixed_user_id})
+        if record and "history" in record:
+            return record["history"]
+        return []
+    except Exception as e:
+        raise Exception(f"Error loading medical emergency chat history: {e}")
+
+def save_history(user_id: str, user_message: str, bot_messages: str):
+    """Save user history to MongoDB."""
+    try:
+        prefixed_user_id = f"medical_emergency_{user_id}"
+        messages = load_history(user_id)
+        created_at_time = datetime.now(timezone.utc)
+        messages.append({"role": "user", "content": user_message, "created_at": created_at_time})
+        messages.append({"role": "bot", "content": bot_messages, "created_at": created_at_time})
+        chat_collection.update_one({"user_id": prefixed_user_id}, {"$set": {"history": messages}}, upsert=True)
+    except Exception as e:
+        raise Exception(f"Error saving medical emergency chat history: {e}")
+
+async def respond(user_id: str, user_message: str):
+    try:
+        config = {"configurable": {"thread_id": f"medical_emergency_{user_id}"}}
+        combined_response = ""
+        for step in medical_emergency_graph.stream(
+            {"messages": [{"role": "user", "content": user_message}]},
+            stream_mode="values",
+            config=config,
+            ):
+    
+            if "messages" in step and step["messages"]:
+                last_message = step["messages"][-1]
+                if isinstance(last_message, AIMessage) and hasattr(last_message, "content"):
+                    combined_response += last_message.content + "\n"
+        return combined_response.strip()
+    except Exception as e:
+        raise Exception(f"Error generating medical emergency response: {e}")
