@@ -1,3 +1,4 @@
 2025-09-27 13:16:38,206 - agents.medical_emergency_agent - ERROR - Error during initialization: Error loading ../../data/
 2025-09-27 13:18:59,872 - agents.medical_emergency_agent - ERROR - Error during initialization: Error loading data/
 2025-09-27 13:19:21,611 - agents.medical_emergency_agent - ERROR - Error during initialization: Error loading data/
+2025-09-27 13:48:22,568 - configurations.postgres_db - ERROR - Failed to establish PostgreSQL database connection: No module named 'psycopg2'
