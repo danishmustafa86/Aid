@@ -46,6 +46,6 @@ async def respond(user_id: str, user_message: str):
                 last_message = step["messages"][-1]
                 if isinstance(last_message, AIMessage) and hasattr(last_message, "content"):
                     combined_response += last_message.content + "\n"
-        return {"response": combined_response.strip(), "section": last_section}
+        return {"response": combined_response.strip(), "emergency_type": last_section}
     except Exception as e:
         raise Exception(f"Error generating triage response: {e}")
