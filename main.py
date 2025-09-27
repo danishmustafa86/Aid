@@ -4,6 +4,7 @@ from routes.health_check_routes import health_check_router
 from routes.medical_emergency_routes import medical_emergency_router
 from routes.electricity_emergency_routes import electricity_emergency_router
 from routes.police_emergency_routes import police_emergency_router
+from routes.fire_emergency_routes import fire_emergency_router
 from routes.triage_routes import triage_router
 from routes.authority_routes import authority_router
 from routes.notification_routes import notification_router
@@ -45,6 +46,7 @@ app.include_router(health_check_router)
 app.include_router(medical_emergency_router)
 app.include_router(electricity_emergency_router)
 app.include_router(police_emergency_router)
+app.include_router(fire_emergency_router)
 app.include_router(triage_router)
 app.include_router(authority_router)
 app.include_router(notification_router)

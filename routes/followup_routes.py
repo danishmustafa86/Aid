@@ -108,7 +108,7 @@ async def get_emergency_case_info(emergency_id: str, emergency_type: str, user_i
     
     Args:
         emergency_id: ID of the emergency case
-        emergency_type: Type of emergency (medical, police, electricity)
+        emergency_type: Type of emergency (medical, police, electricity, fire)
         user_id: User ID
         
     Returns:

@@ -35,7 +35,25 @@ class ElectricityEmergencySchema(BaseModel):
     time_started: Optional[str] = Field(None, description="When issue started")
     description: Optional[str] = Field(None, description="Issue description")
 
+# Fire Emergency Schema
+class FireEmergencySchema(BaseModel):
+    reporter_name: Optional[str] = Field(None, description="Reporter's name")
+    reporter_phone: Optional[str] = Field(None, description="Reporter's phone")
+    location: Optional[str] = Field(None, description="Fire location")
+    fire_type: Optional[str] = Field(None, description="Type of fire emergency")
+    severity_level: Optional[str] = Field(None, description="Severity level")
+    time_started: Optional[str] = Field(None, description="When fire started")
+    people_at_risk: Optional[str] = Field(None, description="Number of people at risk")
+    building_details: Optional[str] = Field(None, description="Building/structure details")
+    hazards_present: Optional[str] = Field(None, description="Hazards present")
+
+# Aliases for agent usage
+MedicalEmergencyInfo = MedicalEmergencySchema
+PoliceEmergencyInfo = PoliceEmergencySchema
+ElectricityEmergencyInfo = ElectricityEmergencySchema
+FireEmergencyInfo = FireEmergencySchema
+
 # Triage Schema
 class TriageSchema(BaseModel):
-    emergency_type: Optional[str] = Field(None, description="Medical, Police, or Electricity")
+    emergency_type: Optional[str] = Field(None, description="Medical, Police, Electricity, or Fire")
     user_query: Optional[str] = Field(None, description="User's query")

@@ -3,6 +3,7 @@ from models.database_models import (
     MedicalEmergencyReport, 
     PoliceEmergencyReport, 
     ElectricityEmergencyReport, 
+    FireEmergencyReport,
     TriageReport,
     Notification,
     EmergencyStatus
@@ -11,6 +12,7 @@ from agents.schemas.agent_schemas import (
     MedicalEmergencySchema,
     PoliceEmergencySchema,
     ElectricityEmergencySchema,
+    FireEmergencySchema,
     TriageSchema
 )
 from configurations.postgres_db import SessionLocal
@@ -136,6 +138,46 @@ def save_electricity_emergency(user_id: str, data: ElectricityEmergencySchema) -
     except Exception as e:
         db.rollback()
         logger.error(f"Error saving electricity emergency report: {e}")
+        raise
+    finally:
+        db.close()
+
+def save_fire_emergency(user_id: str, data: FireEmergencySchema) -> str:
+    """
+    Save fire emergency data to database
+    
+    Args:
+        user_id: User ID
+        data: FireEmergencySchema object with fire emergency data
+        
+    Returns:
+        str: ID of the saved record
+    """
+    db = get_db_session()
+    try:
+        fire_report = FireEmergencyReport(
+            user_id=user_id,
+            reporter_name=data.reporter_name,
+            reporter_phone=data.reporter_phone,
+            location=data.location,
+            fire_type=data.fire_type,
+            severity_level=data.severity_level,
+            time_started=data.time_started,
+            people_at_risk=data.people_at_risk,
+            building_details=data.building_details,
+            hazards_present=data.hazards_present
+        )
+        
+        db.add(fire_report)
+        db.commit()
+        db.refresh(fire_report)
+        
+        logger.info(f"Fire emergency report saved with ID: {fire_report.id}")
+        return fire_report.id
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error saving fire emergency report: {e}")
         raise
     finally:
         db.close()
@@ -275,7 +317,7 @@ def get_emergency_report_by_id(report_id: str, emergency_type: str):
     
     Args:
         report_id: Report ID
-        emergency_type: Type of emergency (medical, police, electricity)
+        emergency_type: Type of emergency (medical, police, electricity, fire)
         
     Returns:
         Emergency report object or None
@@ -294,6 +336,10 @@ def get_emergency_report_by_id(report_id: str, emergency_type: str):
             return db.query(ElectricityEmergencyReport).filter(
                 ElectricityEmergencyReport.id == report_id
             ).first()
+        elif emergency_type.lower() == "fire":
+            return db.query(FireEmergencyReport).filter(
+                FireEmergencyReport.id == report_id
+            ).first()
         else:
             return None
             
@@ -310,7 +356,7 @@ def update_emergency_status(emergency_id: str, emergency_type: str, new_status: 
     
     Args:
         emergency_id: ID of the emergency case
-        emergency_type: Type of emergency (medical, police, electricity)
+        emergency_type: Type of emergency (medical, police, electricity, fire)
         new_status: New status to set
         
     Returns:
@@ -324,6 +370,8 @@ def update_emergency_status(emergency_id: str, emergency_type: str, new_status: 
             report = db.query(PoliceEmergencyReport).filter(PoliceEmergencyReport.id == emergency_id).first()
         elif emergency_type.lower() == "electricity":
             report = db.query(ElectricityEmergencyReport).filter(ElectricityEmergencyReport.id == emergency_id).first()
+        elif emergency_type.lower() == "fire":
+            report = db.query(FireEmergencyReport).filter(FireEmergencyReport.id == emergency_id).first()
         else:
             return False
         
@@ -346,7 +394,7 @@ def get_emergency_cases_by_status(emergency_type: str, status: EmergencyStatus =
     Get emergency cases by status
     
     Args:
-        emergency_type: Type of emergency (medical, police, electricity)
+        emergency_type: Type of emergency (medical, police, electricity, fire)
         status: Optional status filter
         
     Returns:
@@ -360,6 +408,8 @@ def get_emergency_cases_by_status(emergency_type: str, status: EmergencyStatus =
             query = db.query(PoliceEmergencyReport)
         elif emergency_type.lower() == "electricity":
             query = db.query(ElectricityEmergencyReport)
+        elif emergency_type.lower() == "fire":
+            query = db.query(FireEmergencyReport)
         else:
             return []
         

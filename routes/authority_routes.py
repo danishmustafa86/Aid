@@ -485,6 +485,151 @@ async def request_electricity_resolution(emergency_id: str, request: ResolutionR
         logger.error(f"Error requesting electricity resolution: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Fire Emergency Authority Endpoints
+@authority_router.get("/fire/emergencies", response_model=List[EmergencyCaseResponse])
+async def get_fire_emergencies(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    limit: int = Query(50, description="Number of cases to return")
+):
+    """Get fire emergency cases for fire department authorities"""
+    try:
+        # Convert status string to enum if provided
+        status_enum = None
+        if status:
+            try:
+                status_enum = EmergencyStatus(status)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+        
+        cases = get_emergency_cases_by_status("fire", status_enum)
+        
+        # Limit results
+        cases = cases[:limit]
+        
+        # Convert to response format
+        response_cases = []
+        for case in cases:
+            case_data = {
+                "reporter_name": case.reporter_name,
+                "reporter_phone": case.reporter_phone,
+                "location": case.location,
+                "fire_type": case.fire_type,
+                "severity_level": case.severity_level,
+                "time_started": case.time_started,
+                "people_at_risk": case.people_at_risk,
+                "building_details": case.building_details,
+                "hazards_present": case.hazards_present
+            }
+            
+            response_cases.append(EmergencyCaseResponse(
+                id=case.id,
+                user_id=case.user_id,
+                status=case.status.value,
+                created_at=case.created_at.isoformat() if case.created_at else "",
+                updated_at=case.updated_at.isoformat() if case.updated_at else "",
+                data=case_data
+            ))
+        
+        return response_cases
+        
+    except Exception as e:
+        logger.error(f"Error fetching fire emergencies: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@authority_router.put("/fire/emergencies/{emergency_id}/status", response_model=StatusUpdateResponse)
+async def update_fire_emergency_status(emergency_id: str, request: StatusUpdateRequest):
+    """Update fire emergency case status"""
+    try:
+        # Validate status
+        try:
+            new_status = EmergencyStatus(request.new_status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {request.new_status}")
+        
+        # Update status
+        success = update_emergency_status(emergency_id, "fire", new_status)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Emergency case not found")
+        
+        # Create notification for user based on status change
+        case = get_emergency_report_by_id(emergency_id, "fire")
+        if case:
+            if new_status == EmergencyStatus.IN_PROGRESS:
+                create_notification(
+                    user_id=case.user_id,
+                    title="Case Assigned",
+                    message="Your fire emergency case has been assigned to fire department authorities and is now in progress.",
+                    notification_type="status_update",
+                    emergency_id=emergency_id,
+                    emergency_type="fire"
+                )
+            elif new_status == EmergencyStatus.REQUESTED_FOR_RESOLUTION:
+                create_notification(
+                    user_id=case.user_id,
+                    title="Resolution Request",
+                    message="Fire department authorities have requested to mark your emergency case as resolved. Please review and approve.",
+                    notification_type="resolution_request",
+                    emergency_id=emergency_id,
+                    emergency_type="fire"
+                )
+        
+        return StatusUpdateResponse(
+            success=True,
+            message=f"Fire emergency status updated to {new_status.value}"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating fire emergency status: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@authority_router.post("/fire/emergencies/{emergency_id}/request-resolution", response_model=ResolutionRequestResponse)
+async def request_fire_resolution(emergency_id: str, request: ResolutionRequest):
+    """Request user approval to mark fire emergency case as resolved"""
+    try:
+        # Get the case to verify it exists and get user info
+        case = get_emergency_report_by_id(emergency_id, "fire")
+        if not case:
+            raise HTTPException(status_code=404, detail="Emergency case not found")
+        
+        # Check if case is in progress
+        if case.status != EmergencyStatus.IN_PROGRESS:
+            raise HTTPException(status_code=400, detail="Case must be IN_PROGRESS to request resolution")
+        
+        # Create notification in database
+        create_notification(
+            user_id=case.user_id,
+            title="Resolution Request",
+            message=request.message or "Fire department authorities have completed their work and request your confirmation to mark this case as resolved.",
+            notification_type="resolution_request",
+            emergency_id=emergency_id,
+            emergency_type="fire"
+        )
+        
+        # Mock send notification (email, SMS, push notification, etc.)
+        notification_sent = mock_send_notification(
+            user_id=case.user_id,
+            title="Resolution Request",
+            message=request.message or "Fire department authorities have completed their work and request your confirmation to mark this case as resolved.",
+            notification_type="resolution_request",
+            emergency_id=emergency_id,
+            emergency_type="fire"
+        )
+        
+        return ResolutionRequestResponse(
+            success=True,
+            message="Resolution request sent to user. Case will be marked as resolved only after user approval.",
+            notification_sent=notification_sent
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error requesting fire resolution: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # General Authority Endpoints
 @authority_router.get("/emergencies/{emergency_type}/{emergency_id}")
 async def get_emergency_case(emergency_type: str, emergency_id: str):

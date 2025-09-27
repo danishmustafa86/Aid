@@ -82,6 +82,30 @@ class ElectricityEmergencyReport(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+class FireEmergencyReport(Base):
+    __tablename__ = "fire_emergency_reports"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False, index=True)
+    
+    # Essential fields
+    reporter_name = Column(String, nullable=True)
+    reporter_phone = Column(String, nullable=True)
+    location = Column(Text, nullable=True)
+    fire_type = Column(String, nullable=True)
+    severity_level = Column(String, nullable=True)
+    time_started = Column(String, nullable=True)
+    people_at_risk = Column(String, nullable=True)
+    building_details = Column(Text, nullable=True)
+    hazards_present = Column(Text, nullable=True)
+    
+    # Status field
+    status = Column(Enum(EmergencyStatus, name='emergencystatus'), nullable=False, default=EmergencyStatus.NOT_ASSIGNED)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 # Triage Report to track which agent was selected
 class TriageReport(Base):
     __tablename__ = "triage_reports"

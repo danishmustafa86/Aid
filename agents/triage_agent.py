@@ -43,6 +43,7 @@ class EmergencyType(Enum):
     Medical = "Medical"
     Police = "Police"
     Electricity = "Electricity"
+    Fire = "Fire"
 
 
 llm = ChatOpenAI(model="gpt-4o-mini")
@@ -52,7 +53,7 @@ def classify_emergency_type(emergency_type: EmergencyType):
     """Classify the emergency type based on the user's query.
 
     Args:
-        emergency_type: One of the enum values: Medical, Police, Electricity
+        emergency_type: One of the enum values: Medical, Police, Electricity, Fire
 
     Returns:
         dict with the classified emergency type under key 'emergency_type'.
@@ -87,7 +88,7 @@ You can classify emergencies into three main categories:
 - Always prioritize safety and immediate action when necessary
 
 ### Emergency Classification Tool:
-- You have access to a tool named `classify_emergency_type(emergency_type)` where `emergency_type` is one of: Medical, Police, Electricity
+- You have access to a tool named `classify_emergency_type(emergency_type)` where `emergency_type` is one of: Medical, Police, Electricity, Fire
 - ALWAYS call this tool when a user describes an emergency situation
 - After calling the tool, provide relevant guidance and next steps
 - Include the emergency type in your response for transparency

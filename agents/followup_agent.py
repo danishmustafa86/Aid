@@ -33,7 +33,7 @@ def resolve_emergency_case(emergency_id: str, emergency_type: str):
     
     Args:
         emergency_id: ID of the emergency case
-        emergency_type: Type of emergency (medical, police, electricity)
+        emergency_type: Type of emergency (medical, police, electricity, fire)
         
     Returns:
         dict: Resolution result
@@ -70,7 +70,7 @@ def mark_case_resolved(emergency_id: str, emergency_type: str):
     
     Args:
         emergency_id: ID of the emergency case to resolve
-        emergency_type: Type of emergency (medical, police, electricity)
+        emergency_type: Type of emergency (medical, police, electricity, fire)
         
     Returns:
         dict: Resolution confirmation
@@ -120,7 +120,7 @@ You MUST collect the following information to properly resolve the case:
 
 **Case Details:**
 - Emergency case ID (provided in context)
-- Emergency type (medical, police, electricity)
+- Emergency type (medical, police, electricity, fire)
 
 **User Satisfaction:**
 - Overall satisfaction with the resolution
