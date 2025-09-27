@@ -7,11 +7,17 @@ logger = logging.getLogger(__name__)
 
 # Create PostgreSQL engine
 try:
+    # Ensure we use psycopg2-binary driver
+    postgres_url = config.POSTGRESQL_URL
+    if not postgres_url.startswith("postgresql+psycopg2://"):
+        postgres_url = postgres_url.replace("postgresql://", "postgresql+psycopg2://")
+    
     engine = create_engine(
-        config.POSTGRESQL_URL,
+        postgres_url,
         pool_pre_ping=True,
         pool_recycle=300,
-        echo=False  # Set to True for SQL query logging
+        echo=False,  # Set to True for SQL query logging
+        connect_args={"options": "-c timezone=utc"}
     )
     
     # Create session factory
