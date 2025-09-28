@@ -57,3 +57,4 @@ app.include_router(triage_router)
 app.include_router(authority_router)
 app.include_router(notification_router)
 app.include_router(followup_router)
+
