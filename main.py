@@ -13,10 +13,16 @@ from routes.followup_routes import followup_router
 from models.database_models import Base
 from configurations.postgres_db import engine
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+# Create FastAPI app with title and description for Vercel
+app = FastAPI(
+    title="AidLinkAI Emergency Response System",
+    description="Multi-agent AI system for emergency response and case management",
+    version="1.0.0"
+)
 
 # Add CORS middleware to allow all origins
 app.add_middleware(
@@ -28,9 +34,10 @@ app.add_middleware(
 )
 
 # Mount static files directory for serving audio files
-import os
-os.makedirs("audio_files", exist_ok=True)
-app.mount("/audio", StaticFiles(directory="audio_files"), name="audio")
+# Only create audio_files directory if not in Vercel environment
+if not os.getenv("VERCEL"):
+    os.makedirs("audio_files", exist_ok=True)
+    app.mount("/audio", StaticFiles(directory="audio_files"), name="audio")
 
 @app.on_event("startup")
 async def startup_event():

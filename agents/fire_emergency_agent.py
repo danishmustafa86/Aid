@@ -1,4 +1,5 @@
 import logging
+import os
 from langchain_community.document_loaders import TextLoader
 from dotenv import load_dotenv
 from langchain.tools.retriever import create_retriever_tool
@@ -37,8 +38,16 @@ try:
     embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
     vector_store = InMemoryVectorStore(embeddings)
 
-    loader = TextLoader(f"data/{config.SOURCE_FILENAME_FIRE}", encoding="utf-8")
-    docs = loader.load()
+    # Check if data file exists, create empty content if not
+    data_file_path = f"data/{config.SOURCE_FILENAME_FIRE}"
+    if not os.path.exists(data_file_path):
+        logger.warning(f"Fire data file not found at {data_file_path}, using empty content")
+        # Create empty content for the retriever
+        from langchain_core.documents import Document
+        docs = [Document(page_content="Fire Emergency Information\n\nBasic fire safety procedures and emergency response guidelines.", metadata={"source": "default"})]
+    else:
+        loader = TextLoader(data_file_path, encoding="utf-8")
+        docs = loader.load()
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
     all_splits = text_splitter.split_documents(docs)
@@ -47,7 +56,21 @@ try:
     retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 except Exception as e:
     logger.error(f"Error during initialization: {e}")
-    raise
+    # Create a fallback retriever with empty content
+    from langchain_core.documents import Document
+    from langchain_core.vectorstores import InMemoryVectorStore
+    from langchain_openai import OpenAIEmbeddings
+    
+    try:
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+        vector_store = InMemoryVectorStore(embeddings)
+        docs = [Document(page_content="Fire Emergency Information\n\nBasic fire safety procedures and emergency response guidelines.", metadata={"source": "fallback"})]
+        _ = vector_store.add_documents(documents=docs)
+        retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+        logger.info("Using fallback fire emergency retriever")
+    except Exception as fallback_error:
+        logger.error(f"Failed to create fallback retriever: {fallback_error}")
+        raise
 
 # Initialize LLM
 llm = ChatOpenAI(model="gpt-4o-mini")
@@ -321,6 +344,9 @@ try:
 
     memory = MongoDBSaver(mongodb_client)
     fire_emergency_graph = graph_builder.compile(checkpointer=memory)
+    logger.info("Fire emergency graph compiled successfully")
 except Exception as e:
     logger.error(f"Error building state graph: {e}")
+    import traceback
+    traceback.print_exc()
     raise

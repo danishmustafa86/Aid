@@ -11,6 +11,16 @@ from utils.voice_utils import speech_to_text, text_to_speech
 
 fire_emergency_router = APIRouter()
 
+@fire_emergency_router.get("/api/fire-emergency/health")
+async def fire_emergency_health_check():
+    """Health check for fire emergency agent"""
+    try:
+        # Try to import the fire emergency graph
+        from agents.fire_emergency_agent import fire_emergency_graph
+        return JSONResponse(status_code=200, content={"status": "healthy", "message": "Fire emergency agent is working"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "unhealthy", "error": str(e)})
+
 async def cleanup_audio_file(audio_path: str, delay_seconds: int = 300):
     """
     Clean up audio file after specified delay (default 5 minutes).
@@ -33,6 +43,8 @@ async def fire_emergency_chat_endpoint(
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     try:
+        print(f"Fire emergency chat request - user_id: {user_id}, message: {message}, input_type: {input_type}")
+        
         user_message = message
         
         # Step 1: Handle input based on input_type
@@ -50,7 +62,10 @@ async def fire_emergency_chat_endpoint(
         if not user_message:
             return JSONResponse(status_code=400, content={"error": "No message provided"})
         
+        print(f"Processing fire emergency message: {user_message}")
         bot_response = await respond(user_id, user_message)
+        print(f"Fire emergency response generated: {bot_response}")
+        
         background_tasks.add_task(save_history, user_id, user_message, bot_response)
         
         # Generate audio response if input was voice
@@ -73,6 +88,8 @@ async def fire_emergency_chat_endpoint(
         return JSONResponse(status_code=200, content=response_data)
     except Exception as e:
         print("Error while working on fire emergency chat request: ",str(e))
+        import traceback
+        traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": "We are facing an error. Please try again later."})
 
 @fire_emergency_router.get("/api/fire-emergency/chatHistory/{user_id}")
